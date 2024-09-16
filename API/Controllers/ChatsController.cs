@@ -13,6 +13,10 @@ namespace API.Controllers
             if (string.IsNullOrWhiteSpace(cursor)) {  return BadRequest("cursor parameter is required"); }
             if (string.IsNullOrWhiteSpace(id)) { return BadRequest("id parameter is requiered"); }
 
+
+
+            //tmp 
+            return Ok();
         }
     }
 }

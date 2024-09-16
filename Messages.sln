@@ -3,7 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.9.34607.119
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "API", "API\API.csproj", "{935C0434-0DD9-4DDB-A454-74D6D5CA3970}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "API Server", "API\API Server.csproj", "{935C0434-0DD9-4DDB-A454-74D6D5CA3970}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebSocket Server", "WebSocket\WebSocket Server.csproj", "{465B7783-BE46-4E22-ADCF-4B779DD039A4}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +17,10 @@ Global
 		{935C0434-0DD9-4DDB-A454-74D6D5CA3970}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{935C0434-0DD9-4DDB-A454-74D6D5CA3970}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{935C0434-0DD9-4DDB-A454-74D6D5CA3970}.Release|Any CPU.Build.0 = Release|Any CPU
+		{465B7783-BE46-4E22-ADCF-4B779DD039A4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{465B7783-BE46-4E22-ADCF-4B779DD039A4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{465B7783-BE46-4E22-ADCF-4B779DD039A4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{465B7783-BE46-4E22-ADCF-4B779DD039A4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
