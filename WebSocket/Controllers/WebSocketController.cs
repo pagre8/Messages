@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using System.Net.WebSockets;
 using System.Text;
+using WebSocket_Server.Data_access;
 
 namespace WebSocket_Server.Controllers
 {
@@ -8,6 +9,13 @@ namespace WebSocket_Server.Controllers
     [Route("api/[controller]")]
     public class WebSocketController : ControllerBase
     {
+        private readonly CassandraAccess _cassandraAccess;
+
+        public WebSocketController(CassandraAccess cassandraAccess)
+        {
+            _cassandraAccess = cassandraAccess;
+        }
+
         [HttpGet("/ws")]
         public async Task<IActionResult> Get()
         {
@@ -22,6 +30,9 @@ namespace WebSocket_Server.Controllers
                 return BadRequest("This endpoint only supports WebSocket requests.");
             }
         }
+
+        //TODO:
+        //Make a propper Controller instead of test one
 
         private async Task HandleWebSocketCommunication(WebSocket webSocket)
         {

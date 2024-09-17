@@ -1,6 +1,10 @@
+using WebSocket_Server.Data_access;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+
+builder.Services.AddScoped<CassandraAccess>();
 
 var app = builder.Build();
 
@@ -22,6 +26,8 @@ app.UseEndpoints(endpoints =>
 {
     endpoints.MapControllers();
 });
+
+app.UseHttpsRedirection();
 
 
 app.Run();
