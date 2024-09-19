@@ -1,10 +1,16 @@
 using WebSocket_Server.Data_access;
+using Serilog;
+using Serilog.Debugging;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 
 builder.Services.AddScoped<CassandraAccess>();
+
+builder.Host.UseSerilog((hostBuilderContext, loggerConfiguration) =>
+loggerConfiguration
+.WriteTo.Seq("http://localhost:5341"));
 
 var app = builder.Build();
 
