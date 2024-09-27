@@ -2,7 +2,7 @@
 
 namespace WebSocket_Server.Data_access
 {
-    public class CassandraAccess
+    public class CassandraAccess : IDisposable
     {
         public readonly Cassandra.ISession _session;
         public CassandraAccess()
@@ -13,6 +13,11 @@ namespace WebSocket_Server.Data_access
                 .WithCredentials("WebSocket", "WebSocket123")
                 .Build();
             _session = cluster.Connect("messages_keyspace");
+        }
+
+        public void Dispose()
+        {
+            _session?.Dispose();
         }
     }
 }

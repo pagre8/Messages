@@ -4,6 +4,8 @@ using System.Text;
 using WebSocket_Server.Data_access;
 using System.Text.Json;
 using WebSocket_Server.Models;
+using WebSocket_Server.Rabbit_Access;
+using RabbitMQ.Client;
 
 namespace WebSocket_Server.Controllers
 {
@@ -12,10 +14,12 @@ namespace WebSocket_Server.Controllers
     public class WebSocketController : ControllerBase
     {
         private readonly CassandraAccess _cassandraAccess;
+        private readonly RabbitAccess _rabbitAccess;
 
-        public WebSocketController(CassandraAccess cassandraAccess)
+        public WebSocketController(CassandraAccess cassandraAccess, RabbitAccess rabbitAccess)
         {
             _cassandraAccess = cassandraAccess;
+            _rabbitAccess = rabbitAccess;
         }
 
         [HttpGet("/ws")]
@@ -23,6 +27,7 @@ namespace WebSocket_Server.Controllers
         {
             if (HttpContext.WebSockets.IsWebSocketRequest)
             {
+                Console.WriteLine("incomming connection");
                 WebSocket webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
                 await HandleWebSocketCommunication(webSocket);
                 return new EmptyResult();
@@ -38,8 +43,14 @@ namespace WebSocket_Server.Controllers
 
         private async Task HandleWebSocketCommunication(WebSocket webSocket)
         {
+            Console.WriteLine("upgraded succesfully");
             var buffer = new byte[1024 * 4];
             var preparedCommand = _cassandraAccess._session.Prepare("Insert into messages (id, idchat, idsender, content, createdat) values (?, ?, ?, ?, ?)");
+
+            var channel = _rabbitAccess._connection.CreateModel();
+            channel.ExchangeDeclare(exchange:"messages",type:ExchangeType.Direct);
+
+
             WebSocketReceiveResult result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
 
             while(!result.CloseStatus.HasValue)
@@ -49,15 +60,29 @@ namespace WebSocket_Server.Controllers
                 try
                 {
                     MessageData messageData = JsonSerializer.Deserialize<MessageData>(recivedMessage);
-                    try
-                    {
-                        var boundCommand = preparedCommand.Bind(messageData.Id, messageData.IdChat, messageData.IdSender, messageData.Content, messageData.CreatedAt);
-                        _cassandraAccess._session.Execute(boundCommand);
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Error sending data to cassandra: {ex.Message}");
-                    }
+
+                    var body = Encoding.UTF8.GetBytes(recivedMessage);
+
+                    channel.BasicPublish
+                        (
+                        exchange:"messages",
+                        routingKey:messageData.IdChat,
+                        basicProperties:null,
+                        body:body
+                        );
+
+                    Console.WriteLine($" {DateTime.Now} Sent {messageData.Content}");
+
+
+                    //try
+                    //{
+                    //    var boundCommand = preparedCommand.Bind(messageData.Id, messageData.IdChat, messageData.IdSender, messageData.Content, messageData.CreatedAt);
+                    //    _cassandraAccess._session.Execute(boundCommand);
+                    //}
+                    //catch (Exception ex)
+                    //{
+                    //    Console.WriteLine($"Error sending data to cassandra: {ex.Message}");
+                    //}
 
                 }
                 catch (JsonException ex) 

@@ -1,12 +1,16 @@
 using WebSocket_Server.Data_access;
 using Serilog;
-using Serilog.Debugging;
+using WebSocket_Server.Rabbit_Access;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 
+//once per request
 builder.Services.AddScoped<CassandraAccess>();
+//once per app lifetime
+builder.Services.AddSingleton<RabbitAccess>();
 
 builder.Host.UseSerilog((hostBuilderContext, loggerConfiguration) =>
 loggerConfiguration
@@ -35,5 +39,5 @@ app.UseEndpoints(endpoints =>
 
 app.UseHttpsRedirection();
 
-
+Console.WriteLine("Working");
 app.Run();
