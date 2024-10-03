@@ -48,54 +48,60 @@ namespace WebSocket_Server.Controllers
             var preparedCommand = _cassandraAccess._session.Prepare("Insert into messages (id, idchat, idsender, content, createdat) values (?, ?, ?, ?, ?)");
 
             var channel = _rabbitAccess._connection.CreateModel();
-            channel.ExchangeDeclare(exchange:"messages",type:ExchangeType.Direct);
+            channel.ExchangeDeclare(exchange: "messages", type: ExchangeType.Direct);
 
-
-            WebSocketReceiveResult result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-
-            while(!result.CloseStatus.HasValue)
+            try
             {
-                var recivedMessage = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                WebSocketReceiveResult result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
 
-                try
+                while (!result.CloseStatus.HasValue)
                 {
-                    MessageData messageData = JsonSerializer.Deserialize<MessageData>(recivedMessage);
+                    var recivedMessage = Encoding.UTF8.GetString(buffer, 0, result.Count);
 
-                    var body = Encoding.UTF8.GetBytes(recivedMessage);
+                    try
+                    {
+                        MessageData messageData = JsonSerializer.Deserialize<MessageData>(recivedMessage);
 
-                    channel.BasicPublish
-                        (
-                        exchange:"messages",
-                        routingKey:messageData.IdChat,
-                        basicProperties:null,
-                        body:body
-                        );
+                        messageData.Id = Guid.NewGuid();
 
-                    Console.WriteLine($" {DateTime.Now} Sent {messageData.Content}");
+                        var body = Encoding.UTF8.GetBytes(recivedMessage);
+
+                        channel.BasicPublish
+                            (
+                            exchange: "messages",
+                            routingKey: messageData.IdChat.ToString(),
+                            basicProperties: null,
+                            body: body
+                            );
+
+                        Console.WriteLine($" {DateTime.Now} Sent {messageData.Content}");
 
 
-                    //try
-                    //{
-                    //    var boundCommand = preparedCommand.Bind(messageData.Id, messageData.IdChat, messageData.IdSender, messageData.Content, messageData.CreatedAt);
-                    //    _cassandraAccess._session.Execute(boundCommand);
-                    //}
-                    //catch (Exception ex)
-                    //{
-                    //    Console.WriteLine($"Error sending data to cassandra: {ex.Message}");
-                    //}
+                        try
+                        {
+                            var boundCommand = preparedCommand.Bind(messageData.Id, messageData.IdChat, messageData.IdSender, messageData.Content, messageData.CreatedAt);
+                            _cassandraAccess._session.Execute(boundCommand);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Error sending data to cassandra: {ex.Message}");
+                        }
 
+                    }
+                    catch (JsonException ex)
+                    {
+                        Console.WriteLine($"Error deserializing JSON: {ex.Message}");
+                    }
+
+
+
+                    result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
                 }
-                catch (JsonException ex) 
-                {
-                    Console.WriteLine($"Error deserializing JSON: {ex.Message}");
-                }
-                
 
-
-                result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer),CancellationToken.None);
+                await webSocket.CloseAsync(result.CloseStatus.Value, result.CloseStatusDescription, CancellationToken.None);
             }
-            await webSocket.CloseAsync(result.CloseStatus.Value, result.CloseStatusDescription, CancellationToken.None);
-        }
+            catch (Exception) { }
 
+        }
     }
 }

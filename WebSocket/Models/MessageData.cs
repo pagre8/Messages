@@ -2,9 +2,9 @@
 {
     public class MessageData
     {
-        public string Id { get; set; }
-        public string IdChat { get; set; }
-        public string IdSender { get; set; }
+        public Guid Id { get; set; }
+        public Guid IdChat { get; set; }
+        public Guid IdSender { get; set; }
         public string Content { get; set; }
         public DateTime CreatedAt { get; set; }
     }
