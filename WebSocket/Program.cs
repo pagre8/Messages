@@ -1,6 +1,6 @@
 using WebSocket_Server.Data_access;
 using Serilog;
-using WebSocket_Server.Rabbit_Access;
+using WebSocket_Server.Infrastructure.Messaging;
 
 
 var builder = WebApplication.CreateBuilder(args);

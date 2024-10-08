@@ -1,11 +1,11 @@
 ﻿using RabbitMQ.Client;
 
-namespace WebSocket_Server.Rabbit_Access
+namespace WebSocket_Server.Infrastructure.Messaging
 {
     public class RabbitAccess : IDisposable
     {
         public readonly IConnection _connection;
-        
+
         public RabbitAccess()
         {
             var factory = new ConnectionFactory() { HostName = "localhost" };
@@ -16,7 +16,7 @@ namespace WebSocket_Server.Rabbit_Access
 
 
 
-        public void Dispose() 
+        public void Dispose()
         {
             _connection.Dispose();
         }
