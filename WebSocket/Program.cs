@@ -1,6 +1,8 @@
-using WebSocket_Server.Data_access;
+using WebSocket_Server.DataAccess;
 using Serilog;
 using WebSocket_Server.Infrastructure.Messaging;
+using WebSocket_Server.Infrastructure.Services;
+using WebSocket_Server.Interfaces;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -9,12 +11,18 @@ builder.Services.AddControllers();
 
 //once per request
 builder.Services.AddScoped<CassandraAccess>();
+
+builder.Services.AddScoped<IMessageService, MessageService>();
+
 //once per app lifetime
 builder.Services.AddSingleton<RabbitAccess>();
 
 builder.Host.UseSerilog((hostBuilderContext, loggerConfiguration) =>
 loggerConfiguration
-.WriteTo.Seq("http://localhost:5341"));
+.WriteTo.Seq("http://localhost:5341")
+.Enrich.FromLogContext()
+.MinimumLevel.Debug()
+.WriteTo.Console());
 
 var app = builder.Build();
 
@@ -25,17 +33,14 @@ if (app.Environment.IsDevelopment())
 
 var webSocketOptions = new WebSocketOptions()
 {
-    KeepAliveInterval = TimeSpan.FromSeconds(120),
-    ReceiveBufferSize = 4 * 1024
+    KeepAliveInterval = TimeSpan.FromSeconds(120)
 };
 
 app.UseWebSockets(webSocketOptions);
 
 app.UseRouting();
-app.UseEndpoints(endpoints =>
-{
-    endpoints.MapControllers();
-});
+
+app.MapControllers();
 
 app.UseHttpsRedirection();
 

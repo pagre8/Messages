@@ -1,72 +1,70 @@
 ﻿using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
-using WebSocket_Server.Data_access;
+using WebSocket_Server.DataAccess;
 using WebSocket_Server.Models;
 using WebSocket_Server.Infrastructure.Messaging;
 using Cassandra;
 using RabbitMQ.Client;
+using Serilog;
+using WebSocket_Server.Interfaces;
 
-namespace WebSocket_Server.Services
+namespace WebSocket_Server.Infrastructure.Services
 {
-    public class MessageService
+    public class MessageService(CassandraAccess cassandraAccess, RabbitAccess rabbitAccess) : IMessageService
     {
-        private readonly CassandraAccess _cassandraAccess;
-        private readonly RabbitAccess _rabbitAccess;
-
-        public MessageService(CassandraAccess cassandraAccess, RabbitAccess rabbitAccess)
-        {
-            _cassandraAccess = cassandraAccess;
-            _rabbitAccess = rabbitAccess;
-        }
+        private readonly CassandraAccess _cassandraAccess = cassandraAccess;
+        private readonly RabbitAccess _rabbitAccess = rabbitAccess;
 
         public async Task HandleWebSocketCommunication(WebSocket webSocket)
         {
-            Console.WriteLine("upgraded successfully");
             var buffer = new byte[1024 * 4];
-            var preparedCommand =  await _cassandraAccess._session.PrepareAsync("Insert into messages (id, idchat, idsender, content, createdat) values (?, ?, ?, ?, ?)");
-
-            var channel = _rabbitAccess._connection.CreateModel();
-            channel.ExchangeDeclare(exchange: "messages", type: ExchangeType.Direct);
+            var preparedCommand = await _cassandraAccess._session.PrepareAsync("Insert into messages (id, idchat, idsender, content, createdat) values (?, ?, ?, ?, ?)");
 
             try
             {
-                WebSocketReceiveResult result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-
-                while (!result.CloseStatus.HasValue)
+                using (var channel = _rabbitAccess.CreateModel())
                 {
-                    var receivedMessage = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                    WebSocketReceiveResult result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
 
-                    var messageData = DeserializeMessage(receivedMessage);
-
-                    bool hasAccess = await CheckAccess(messageData.IdSender, messageData.IdChat);
-
-                    if (hasAccess)
+                    while (!result.CloseStatus.HasValue)
                     {
+                        var receivedMessage = Encoding.UTF8.GetString(buffer, 0, result.Count);
+
+                        var messageData = DeserializeMessage(receivedMessage);
+
                         if (messageData != null)
                         {
-                            messageData.Id = Guid.NewGuid();
-                            PublishToRabbit(channel, messageData);
-                            SaveToCassandra(preparedCommand, messageData);
-                        }
-                    }
-                    else
-                    {
-                        //send lack of access message
-                    }
-                    
-                    result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-                }
+                            bool hasAccess = await CheckAccess(messageData.IdSender, messageData.IdChat);
 
-                await webSocket.CloseAsync(result.CloseStatus.Value, result.CloseStatusDescription, CancellationToken.None);
+                            if (hasAccess)
+                            {
+                                messageData.Id = Guid.NewGuid();
+                                PublishToRabbit(channel, messageData);
+                                SaveToCassandra(preparedCommand, messageData);
+                            }
+                            else
+                            {
+                                //send lack of access message
+
+                                Log.Warning("No access");
+                            }
+                        }
+
+                        result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+                    }
+
+                    await webSocket.CloseAsync(result.CloseStatus.Value, result.CloseStatusDescription, CancellationToken.None);
+                }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error: {ex.Message}");
+                Log.Error(ex.Message);
             }
         }
 
-        private MessageData DeserializeMessage(string message)
+        static private MessageData? DeserializeMessage(string message)
         {
             try
             {
@@ -75,11 +73,12 @@ namespace WebSocket_Server.Services
             catch (JsonException ex)
             {
                 Console.WriteLine($"Error deserializing JSON: {ex.Message}");
+                Log.Error($"Error deserializing JSON: {ex.Message}");
                 return null;
             }
         }
 
-        private void PublishToRabbit(IModel channel, MessageData messageData)
+        public void PublishToRabbit(IModel channel, MessageData messageData)
         {
             var body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(messageData));
             channel.BasicPublish(
@@ -88,10 +87,9 @@ namespace WebSocket_Server.Services
                 basicProperties: null,
                 body: body
             );
-            Console.WriteLine($" {DateTime.Now} Sent {messageData.Content}");
         }
 
-        private void SaveToCassandra(PreparedStatement preparedCommand, MessageData messageData)
+        public void SaveToCassandra(PreparedStatement preparedCommand, MessageData messageData)
         {
             try
             {
@@ -102,24 +100,26 @@ namespace WebSocket_Server.Services
             catch (Exception ex)
             {
                 Console.WriteLine($"Error sending data to Cassandra: {ex.Message}");
+                Log.Error($"Error sending data to Cassandra: {ex.Message}");
             }
         }
 
-        private async Task<bool> CheckAccess(Guid userId, Guid chatId)
+        public async Task<bool> CheckAccess(Guid userId, Guid chatId)
         {
             try
             {
-                var preparedCommand = await _cassandraAccess._session.PrepareAsync("select count(*) from chat_participants where user_id = ? and chat_id = ?");
+                var preparedCommand = await _cassandraAccess._session.PrepareAsync("select count(*) from chat_participants where participant_id = ? and chat_id = ?");
                 var boundCommand = preparedCommand.Bind(userId, chatId);
                 var rs = await _cassandraAccess._session.ExecuteAsync(boundCommand);
-                if (rs != null && rs.FirstOrDefault() != null)
-                {
-                    var row = rs.First();
-                    return row.GetValue<long>(0) > 0; //check if the count is greater than 0
-                }
-                return false;
+
+                var a = rs.Any();
+                var b = rs.FirstOrDefault();
+                var c = rs.Count();
+
+                return rs.FirstOrDefault() != null;
+
             }
-            catch (Exception ex) { Console.WriteLine($"Error checking access: {ex.Message}"); } 
+            catch (Exception ex) { Log.Error($"Error checking access: {ex.Message} {ex.Source}"); }
             return false;
 
         }

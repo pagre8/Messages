@@ -1,6 +1,6 @@
 ﻿using Cassandra;
 
-namespace WebSocket_Server.Data_access
+namespace WebSocket_Server.DataAccess
 {
     public class CassandraAccess : IDisposable
     {
@@ -17,7 +17,7 @@ namespace WebSocket_Server.Data_access
 
         public void Dispose()
         {
-            _session?.Dispose();
+            GC.SuppressFinalize(this);
         }
     }
 }

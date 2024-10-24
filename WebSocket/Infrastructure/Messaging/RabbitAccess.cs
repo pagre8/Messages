@@ -12,9 +12,10 @@ namespace WebSocket_Server.Infrastructure.Messaging
             _connection = factory.CreateConnection();
         }
 
-
-
-
+        public IModel CreateModel()
+        {
+            return _connection.CreateModel();
+        }
 
         public void Dispose()
         {
