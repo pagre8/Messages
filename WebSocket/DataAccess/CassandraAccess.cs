@@ -1,10 +1,11 @@
 ﻿using Cassandra;
+using WebSocket_Server.Interfaces;
 
 namespace WebSocket_Server.DataAccess
 {
-    public class CassandraAccess : IDisposable
+    public class CassandraAccess : IDisposable, ICassandraAccess
     {
-        public readonly Cassandra.ISession _session;
+        public virtual Cassandra.ISession Session { get; }
         public CassandraAccess()
         {
             var cluster = Cluster.Builder()
@@ -12,7 +13,7 @@ namespace WebSocket_Server.DataAccess
                 .WithPort(9042)
                 .WithCredentials("WebSocket", "WebSocket123")
                 .Build();
-            _session = cluster.Connect("messages_keyspace");
+            Session = cluster.Connect("messages_keyspace");
         }
 
         public void Dispose()

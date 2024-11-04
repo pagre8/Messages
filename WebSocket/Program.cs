@@ -10,12 +10,12 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 
 //once per request
-builder.Services.AddScoped<CassandraAccess>();
+builder.Services.AddScoped<ICassandraAccess, CassandraAccess>();
 
 builder.Services.AddScoped<IMessageService, MessageService>();
 
 //once per app lifetime
-builder.Services.AddSingleton<RabbitAccess>();
+builder.Services.AddSingleton<IRabbitAccess, RabbitAccess>();
 
 builder.Host.UseSerilog((hostBuilderContext, loggerConfiguration) =>
 loggerConfiguration

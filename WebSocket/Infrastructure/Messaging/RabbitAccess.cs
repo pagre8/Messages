@@ -1,8 +1,9 @@
 ﻿using RabbitMQ.Client;
+using WebSocket_Server.Interfaces;
 
 namespace WebSocket_Server.Infrastructure.Messaging
 {
-    public class RabbitAccess : IDisposable
+    public class RabbitAccess : IDisposable, IRabbitAccess
     {
         public readonly IConnection _connection;
 
@@ -19,7 +20,7 @@ namespace WebSocket_Server.Infrastructure.Messaging
 
         public void Dispose()
         {
-            _connection.Dispose();
+            GC.SuppressFinalize(this);
         }
 
     }
