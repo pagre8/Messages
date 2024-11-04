@@ -17,12 +17,15 @@ builder.Services.AddScoped<IMessageService, MessageService>();
 //once per app lifetime
 builder.Services.AddSingleton<IRabbitAccess, RabbitAccess>();
 
+
 builder.Host.UseSerilog((hostBuilderContext, loggerConfiguration) =>
 loggerConfiguration
 .WriteTo.Seq("http://localhost:5341")
 .Enrich.FromLogContext()
+.Enrich.WithProperty("Server","WebSocketServer")
 .MinimumLevel.Debug()
 .WriteTo.Console());
+
 
 var app = builder.Build();
 
@@ -30,6 +33,10 @@ if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
 }
+
+app.UseHttpsRedirection();
+
+app.Urls.Add("https://localhost:5001");
 
 var webSocketOptions = new WebSocketOptions()
 {
@@ -42,7 +49,4 @@ app.UseRouting();
 
 app.MapControllers();
 
-app.UseHttpsRedirection();
-
-Console.WriteLine("Working");
 app.Run();

@@ -72,7 +72,9 @@ namespace WebSocket_Server.Infrastructure.Services
         {
             try
             {
-                return JsonSerializer.Deserialize<MessageData>(message);
+                var messageData = JsonSerializer.Deserialize<MessageData>(message);
+                messageData.CreatedAt = DateTime.UtcNow;
+                return messageData;
             }
             catch (JsonException ex)
             {

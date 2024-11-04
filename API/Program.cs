@@ -5,10 +5,7 @@ using Serilog.Debugging;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -17,13 +14,16 @@ options.UseSqlServer(
     builder.Configuration.GetConnectionString("conn")
 ));
 
-builder.Host.UseSerilog((hostBuilderContext, loggerConfiguration)=>
+builder.Host.UseSerilog((hostBuilderContext, loggerConfiguration) =>
 loggerConfiguration
-.WriteTo.Seq("http://localhost:5341"));
+.WriteTo.Seq("http://localhost:5341")
+.Enrich.FromLogContext()
+.Enrich.WithProperty("Server", "APIServer")
+.MinimumLevel.Debug()
+.WriteTo.Console());
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
