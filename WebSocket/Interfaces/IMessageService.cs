@@ -9,8 +9,10 @@ namespace WebSocket_Server.Interfaces
     {
         Task HandleWebSocketCommunication(WebSocket webSocket);
 
-        Task SaveToCassandra(PreparedStatement preparedCommand, MessageData messageData);
-        void PublishToRabbit(IModel channel, MessageData messageData);
+        Task<bool> SaveToCassandra(PreparedStatement preparedCommand, MessageData messageData);
+        bool PublishToRabbit(IModel channel, MessageData messageData);
         Task<bool> CheckAccess(Guid userId, Guid chatId);
+
+        Task SendMessageAsync(WebSocket webSocket, string message);
     }
 }

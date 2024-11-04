@@ -39,12 +39,19 @@ namespace WebSocket_Server.Infrastructure.Services
                         if (hasAccess)
                         {
                             messageData.Id = Guid.NewGuid();
-                            PublishToRabbit(channel, messageData);
-                            await SaveToCassandra(preparedCommand, messageData);
+                            
+                            if(await SaveToCassandra(preparedCommand, messageData))
+                            {
+                                PublishToRabbit(channel, messageData);
+                            }
+                            else
+                            {
+                                await SendMessageAsync(webSocket, "Internal server error.");
+                            }
                         }
                         else
                         {
-                            //send lack of access message
+                            await SendMessageAsync(webSocket, "You don't have access to this chat.");
 
                             Log.Warning("No access");
                         }
@@ -57,7 +64,6 @@ namespace WebSocket_Server.Infrastructure.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error: {ex.Message}");
                 Log.Error(ex.Message);
             }
         }
@@ -76,24 +82,32 @@ namespace WebSocket_Server.Infrastructure.Services
             }
         }
 
-        public void PublishToRabbit(IModel channel, MessageData messageData)
+        public bool PublishToRabbit(IModel channel, MessageData messageData)
         {
 
             if (!IsValidMessageData(messageData))
             {
                 throw new ArgumentException("Invalid message data.");
             }
-
-            var body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(messageData));
-            channel.BasicPublish(
-                exchange: "messages",
-                routingKey: messageData.IdChat.ToString(),
-                basicProperties: null,
-                body: body
-            );
+            try
+            {
+                var body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(messageData));
+                channel.BasicPublish(
+                    exchange: "messages",
+                    routingKey: messageData.IdChat.ToString(),
+                    basicProperties: null,
+                    body: body
+                );
+                return true;
+            }
+            catch (Exception ex) 
+            {
+                Log.Error("Error publishing to Rabbit. "+ex.Message);
+                return false;
+            }
         }
 
-        public async Task SaveToCassandra(PreparedStatement preparedCommand, MessageData messageData)
+        public async Task<bool> SaveToCassandra(PreparedStatement preparedCommand, MessageData messageData)
         {
             if (!IsValidMessageData(messageData))
             {
@@ -105,10 +119,12 @@ namespace WebSocket_Server.Infrastructure.Services
                 var boundCommand = preparedCommand.Bind(
                     messageData.Id, messageData.IdChat, messageData.IdSender, messageData.Content, messageData.CreatedAt);
                 await _cassandraAccess.Session.ExecuteAsync(boundCommand);
+                return true;
             }
             catch (Exception ex)
             {
                 Log.Error($"Error sending data to Cassandra: {ex.Message}");
+                return false;
             }
         }
 
@@ -138,6 +154,19 @@ namespace WebSocket_Server.Infrastructure.Services
             if (messageData.CreatedAt > DateTime.UtcNow) return false;
 
             return true;
+        }
+
+        public async Task SendMessageAsync(WebSocket webSocket, string message)
+        {
+            var buffer = Encoding.UTF8.GetBytes(message);
+            var body = new ArraySegment<byte>(buffer);
+            try
+            {
+                await webSocket.SendAsync(body, WebSocketMessageType.Text, endOfMessage: true, CancellationToken.None);
+            }catch(Exception ex)
+            {
+                Log.Error("Error sending message back to user. " + ex.Message);
+            }
         }
     }
 }
