@@ -1,12 +1,11 @@
-﻿using API.Models;
+﻿using API_Server.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace API.Data_access
+namespace API_Server.DataAccess
 {
     public class ApiDbContext : DbContext
     {
         public ApiDbContext(DbContextOptions<ApiDbContext> options) : base(options) { }
-        public DbSet<UserData> User_data => Set<UserData>();
-        public DbSet<Messages> Messages => Set<Messages>();
+        public DbSet<UserData> UserData => Set<UserData>();
     }
 }
